@@ -1,0 +1,1 @@
+﻿{"name":"Folder Watch","id":20000,"commands":[{"theme":"Settings","syntax":"FOLDER Set watch path(&T):L"},{"theme":"Settings","syntax":"FOLDER Get watch path:T"},{"theme":"Settings","syntax":"FOLDER Set watch method(&T):L"},{"theme":"Settings","syntax":"FOLDER Get watch method:T"}]}
