@@ -273,13 +273,14 @@ void FOLDER_Set_watch_path(sLONG_PTR *pResult, PackagePtr pParams)
         
         BOOL isDirectory = false;    
         NSString *path = Param1.copyPath();
+        NSString *pathHFS = Param1.copyUTF16String();
         
         if([[NSFileManager defaultManager]fileExistsAtPath:path isDirectory:&isDirectory]){
             
             if(isDirectory){
                 
                 returnValue.setIntValue(1); 
-                MONITOR_FOLDER_WATCH_PATH.setUTF16String(Param1.getUTF16StringPtr(), Param1.getUTF16Length()); 
+                MONITOR_FOLDER_WATCH_PATH.setUTF16String(pathHFS); 
                 MONITOR_FOLDER_WATCH_PATH_POSIX = (const char *)[path UTF8String];
                 
                 if(MONITOR_FOLDER_WATCH_METHOD.getUTF16Length()){
@@ -294,6 +295,9 @@ void FOLDER_Set_watch_path(sLONG_PTR *pResult, PackagePtr pParams)
         }else{
             returnValue.setIntValue(MONITOR_FOLDER_INVALID_PATH_ERROR);
         }
+        
+        [path release];
+        [pathHFS release];        
 #else
         
 #endif    

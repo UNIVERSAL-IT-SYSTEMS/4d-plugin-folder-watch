@@ -1,0 +1,6 @@
+*** Automatic log integration
+Data file : Macintosh HD:Users:miyako:github-miyako:4d-plugin-folder-watch:Folder Watch:v11:Folder Watch.4dbase:Folder Watch.4DD
+Log file : Macintosh HD:Users:miyako:github-miyako:4d-plugin-folder-watch:Folder Watch:v11:Folder Watch.4dbase:Folder Watch.journal
+Starting : 2015/01/26 16:02
+Ending : 2015/01/26 16:02
+

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>F62373D5-1374-481D-9BFE-0CBD4CC03D32</string>
+	<key>IDESourceControlProjectName</key>
+	<string>Folder Watch</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>8F956B6FC9B08CC226386C18B0A7E93993177517</key>
+		<string>https://github.com/miyako/4d-plugin-folder-watch.git</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>Folder Watch/Folder Watch.xcodeproj</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>8F956B6FC9B08CC226386C18B0A7E93993177517</key>
+		<string>../../..</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>https://github.com/miyako/4d-plugin-folder-watch.git</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>111</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>8F956B6FC9B08CC226386C18B0A7E93993177517</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>8F956B6FC9B08CC226386C18B0A7E93993177517</string>
+			<key>IDESourceControlWCCName</key>
+			<string>4d-plugin-folder-watch</string>
+		</dict>
+	</array>
+</dict>
+</plist>
