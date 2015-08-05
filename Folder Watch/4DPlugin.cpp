@@ -24,17 +24,8 @@ C_TEXT MONITOR_FOLDER_WATCH_PATH;
 C_TEXT MONITOR_FOLDER_WATCH_METHOD;
 C_TEXT MONITOR_FOLDER_METHOD_PROCESS_NAME_INTERNAL;
 
-bool IsProcessOnExit(){    
-    C_TEXT name;
-    PA_long32 state, time;
-    PA_GetProcessInfo(PA_GetCurrentProcessNumber(), name, &state, &time);
-    CUTF16String procName(name.getUTF16StringPtr());
-    CUTF16String exitProcName((PA_Unichar *)"$\0x\0x\0");
-    return (!procName.compare(exitProcName));
-}
-
 void generateUuid(C_TEXT &returnValue){
-
+    
 #if VERSIONMAC
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
     returnValue.setUTF16String([[[NSUUID UUID]UUIDString]stringByReplacingOccurrencesOfString:@"-" withString:@""]);
@@ -42,25 +33,34 @@ void generateUuid(C_TEXT &returnValue){
     CFUUIDRef uuid = CFUUIDCreate(kCFAllocatorDefault);
     NSString *uuid_str = (NSString *)CFUUIDCreateString(kCFAllocatorDefault, uuid);
     returnValue.setUTF16String([uuid_str stringByReplacingOccurrencesOfString:@"-" withString:@""]);
-#endif    
+#endif
 #else
-
+    
 #endif
 }
 
 #pragma mark -
 
-void listenerOnInitPlugin(){
+bool IsProcessOnExit(){    
+    C_TEXT name;
+    PA_long32 state, time;
+    PA_GetProcessInfo(PA_GetCurrentProcessNumber(), name, &state, &time);
+    CUTF16String procName(name.getUTF16StringPtr());
+    CUTF16String exitProcName((PA_Unichar *)"$\0x\0x\0\0\0");
+    return (!procName.compare(exitProcName));
+}
+
+void OnStartup(){
     CUTF8String name((const uint8_t *)"$FOLDER_WATCH");
     MONITOR_FOLDER_METHOD_PROCESS_NAME_INTERNAL.setUTF8String(&name);
     MONITOR_FOLDER_METHOD_PROCESS_NAME = (process_name_t)MONITOR_FOLDER_METHOD_PROCESS_NAME_INTERNAL.getUTF16StringPtr();
-        
+    
     MONITOR_FOLDER_METHOD_PROCESS_ID = 0;
     MONITOR_FOLDER_STACK_SIZE = 0;
     MONITOR_FOLDER_METHOD_ID = 0;
 }
 
-void listenerOnCloseProcess(){
+void OnCloseProcess(){
     if(IsProcessOnExit()){
         listenerLoopFinish();
     }
@@ -88,11 +88,14 @@ void listenerLoop(){
                           (PA_Unichar *)processName.getUTF16StringPtr());        
 
         }
-
-        PA_FreezeProcess(MONITOR_FOLDER_METHOD_PROCESS_ID);  
+        
+        if(!MONITOR_FOLDER_METHOD_PROCESS_SHOULD_TERMINATE){
+            PA_FreezeProcess(PA_GetCurrentProcessNumber());
+        }else{
+            MONITOR_FOLDER_METHOD_PROCESS_ID = 0;
+        }
     }
     PA_KillProcess();
-    MONITOR_FOLDER_METHOD_PROCESS_ID = 0; 
 }
 
 #if VERSIONMAC 
@@ -142,20 +145,21 @@ void listenerLoopStart(){
 void listenerLoopFinish(){
 
     if(MONITOR_FOLDER_METHOD_PROCESS_ID){
-        
+        //uninstall handler 
 #if VERSIONMAC         
         dispatch_source_set_event_handler_f(MONITOR_FOLDER_DISPATCH_SOURCE, NULL);      
         dispatch_source_cancel(MONITOR_FOLDER_DISPATCH_SOURCE);
 #else
         
 #endif 
-        
+        //set flags
         MONITOR_FOLDER_METHOD_PROCESS_SHOULD_TERMINATE = true;
         MONITOR_FOLDER_METHOD_PROCESS_SHOULD_EXECUTE_METHOD = false;
-        PA_UnfreezeProcess(MONITOR_FOLDER_METHOD_PROCESS_ID);         
-        
+        PA_YieldAbsolute();
+        //tell listener to die
         while(MONITOR_FOLDER_METHOD_PROCESS_ID){
             PA_YieldAbsolute();
+            PA_UnfreezeProcess(MONITOR_FOLDER_METHOD_PROCESS_ID);
         }
     }
 } 
@@ -207,11 +211,11 @@ void CommandDispatcher(PA_long32 pProcNum, sLONG_PTR *pResult, PackagePtr pParam
 	{
         case kInitPlugin :
         case kServerInitPlugin :            
-            listenerOnInitPlugin();
+            OnStartup();
             break;
             
         case kCloseProcess :            
-            listenerOnCloseProcess();
+            OnCloseProcess();
             break;
             
 // --- Settings

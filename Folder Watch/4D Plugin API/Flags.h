@@ -17,14 +17,13 @@
 #define PA_SMALLENDIAN 1
 #define PA_BIGENDIAN 0
 #define PA_64BITS_ARCHITECTURE 0
-#define PLUGIN_API_V14 1
 
 // _WIN32 is defined when compiling for Windows target (32bits as 64 bits)
 #if defined(_WIN32)
 	// See http://msdn.microsoft.com/en-us/library/b0084kay(v=VS.80).aspx for predefined macros on Visual
 	#define VERSIONWIN 1
 	#define VERSIONMAC 0
-	#if defined (WIN64)
+	#if defined (WIN64) || defined (_WIN64)
 		#undef PA_64BITS_ARCHITECTURE
 		#define PA_64BITS_ARCHITECTURE 1
 	#endif
