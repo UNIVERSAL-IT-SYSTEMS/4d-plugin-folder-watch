@@ -11,22 +11,27 @@
 #include "4DPluginAPI.h"
 #include "4DPlugin.h"
 
-process_number_t MONITOR_FOLDER_METHOD_PROCESS_ID;
-process_stack_size_t MONITOR_FOLDER_STACK_SIZE;
-process_name_t MONITOR_FOLDER_METHOD_PROCESS_NAME;
+namespace FW
+{
+    process_name_t MONITOR_PROCESS_NAME = (PA_Unichar *)"$\0F\0O\0L\0D\0E\0R\0_\0W\0A\0T\0C\0H\0\0\0";
+				process_number_t MONITOR_PROCESS_ID = 0;
+    process_stack_size_t MONITOR_PROCESS_STACK_SIZE = 0;
+    method_id_t CALLBACK_METHOD_ID = 0;
+				bool MONITOR_PROCESS_SHOULD_TERMINATE;
+				C_TEXT LISTENER_METHOD;
+				C_TEXT WATCH_PATH;
+				C_TEXT WATCH_METHOD;
+				std::string WATCH_PATH_POSIX;
+				const char *DISPATCH_QUEUE_NAME = "FOLDER_WATCH_QUEUE";
+				dispatch_queue_t DISPATCH_QUEUE;
+				dispatch_source_t DISPATCH_SOURCE;
+				int DESCRIPTOR = 0;
+				dispatch_source_vnode_flags_t DISPATCH_FLAGS = DISPATCH_VNODE_WRITE|DISPATCH_VNODE_DELETE|DISPATCH_VNODE_EXTEND;
+				std::vector<NSTimeInterval>CALLBACK_EVENT_IDS;
+}
 
-method_id_t MONITOR_FOLDER_METHOD_ID;
-
-bool MONITOR_FOLDER_METHOD_PROCESS_SHOULD_TERMINATE;
-bool MONITOR_FOLDER_METHOD_PROCESS_SHOULD_EXECUTE_METHOD;
-
-C_TEXT MONITOR_FOLDER_WATCH_PATH;
-C_TEXT MONITOR_FOLDER_WATCH_METHOD;
-C_TEXT MONITOR_FOLDER_METHOD_PROCESS_NAME_INTERNAL;
-
-void generateUuid(C_TEXT &returnValue){
-    
-#if VERSIONMAC
+void generateUuid(C_TEXT &returnValue)
+{
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
     returnValue.setUTF16String([[[NSUUID UUID]UUIDString]stringByReplacingOccurrencesOfString:@"-" withString:@""]);
 #else
@@ -34,14 +39,12 @@ void generateUuid(C_TEXT &returnValue){
     NSString *uuid_str = (NSString *)CFUUIDCreateString(kCFAllocatorDefault, uuid);
     returnValue.setUTF16String([uuid_str stringByReplacingOccurrencesOfString:@"-" withString:@""]);
 #endif
-#else
-    
-#endif
 }
 
 #pragma mark -
 
-bool IsProcessOnExit(){    
+bool IsProcessOnExit()
+{
     C_TEXT name;
     PA_long32 state, time;
     PA_GetProcessInfo(PA_GetCurrentProcessNumber(), name, &state, &time);
@@ -50,143 +53,138 @@ bool IsProcessOnExit(){
     return (!procName.compare(exitProcName));
 }
 
-void OnStartup(){
-    CUTF8String name((const uint8_t *)"$FOLDER_WATCH");
-    MONITOR_FOLDER_METHOD_PROCESS_NAME_INTERNAL.setUTF8String(&name);
-    MONITOR_FOLDER_METHOD_PROCESS_NAME = (process_name_t)MONITOR_FOLDER_METHOD_PROCESS_NAME_INTERNAL.getUTF16StringPtr();
+void OnStartup()
+{
     
-    MONITOR_FOLDER_METHOD_PROCESS_ID = 0;
-    MONITOR_FOLDER_STACK_SIZE = 0;
-    MONITOR_FOLDER_METHOD_ID = 0;
 }
 
-void OnCloseProcess(){
-    if(IsProcessOnExit()){
+void OnCloseProcess()
+{
+    if(IsProcessOnExit())
+				{
         listenerLoopFinish();
     }
 }
 
 #pragma mark -
 
-void listenerLoop(){
-    
-    MONITOR_FOLDER_METHOD_PROCESS_SHOULD_EXECUTE_METHOD = false;
-    MONITOR_FOLDER_METHOD_PROCESS_SHOULD_TERMINATE = false;
+void listenerLoop()
+{
+    FW::MONITOR_PROCESS_SHOULD_TERMINATE = false;
         
-    while(!MONITOR_FOLDER_METHOD_PROCESS_SHOULD_TERMINATE)
+    while(!FW::MONITOR_PROCESS_SHOULD_TERMINATE)
     { 
         PA_YieldAbsolute();
-        
-        if(MONITOR_FOLDER_METHOD_PROCESS_SHOULD_EXECUTE_METHOD){
-            
-            MONITOR_FOLDER_METHOD_PROCESS_SHOULD_EXECUTE_METHOD = false;
-            
+								while(FW::CALLBACK_EVENT_IDS.size())
+								{
+												PA_YieldAbsolute();
             C_TEXT processName;
             generateUuid(processName);
             PA_NewProcess((void *)listenerLoopExecuteMethod, 
-                          MONITOR_FOLDER_STACK_SIZE, 
-                          (PA_Unichar *)processName.getUTF16StringPtr());        
-
-        }
-        
-        if(!MONITOR_FOLDER_METHOD_PROCESS_SHOULD_TERMINATE){
+                          FW::MONITOR_PROCESS_STACK_SIZE, 
+                          (PA_Unichar *)processName.getUTF16StringPtr());
+												
+												if(FW::MONITOR_PROCESS_SHOULD_TERMINATE)
+																break;
+								}
+								
+        if(!FW::MONITOR_PROCESS_SHOULD_TERMINATE)
+								{
             PA_FreezeProcess(PA_GetCurrentProcessNumber());
         }else{
-            MONITOR_FOLDER_METHOD_PROCESS_ID = 0;
+            FW::MONITOR_PROCESS_ID = 0;
         }
     }
     PA_KillProcess();
 }
 
-#if VERSIONMAC 
-std::string MONITOR_FOLDER_WATCH_PATH_POSIX;
-const char *MONITOR_FOLDER_DISPATCH_QUEUE_NAME = "FOLDER_WATCH_QUEUE";
-dispatch_queue_t MONITOR_FOLDER_DISPATCH_QUEUE;
-dispatch_source_t MONITOR_FOLDER_DISPATCH_SOURCE;
-int MONITOR_FOLDER_DESCRIPTOR = 0;
-dispatch_source_vnode_flags_t MONITOR_FOLDER_DISPATCH_FLAGS = DISPATCH_VNODE_WRITE|DISPATCH_VNODE_DELETE|DISPATCH_VNODE_EXTEND;
-#else
-
-#endif 
-
-void listenerLoopStart(){
-
-    if(!MONITOR_FOLDER_METHOD_PROCESS_ID){
-        
-        MONITOR_FOLDER_METHOD_PROCESS_ID = PA_NewProcess((void *)listenerLoop, 
-                                                         MONITOR_FOLDER_STACK_SIZE, 
-                                                         MONITOR_FOLDER_METHOD_PROCESS_NAME);  
-        
+void listenerLoopStart()
+{
+    if(!FW::MONITOR_PROCESS_ID)
+				{
+        FW::MONITOR_PROCESS_ID = PA_NewProcess((void *)listenerLoop, 
+                                                         FW::MONITOR_PROCESS_STACK_SIZE, 
+                                                         FW::MONITOR_PROCESS_NAME);
 #if VERSIONMAC  
         
-        MONITOR_FOLDER_DESCRIPTOR = open(MONITOR_FOLDER_WATCH_PATH_POSIX.c_str(), O_EVTONLY);
-        MONITOR_FOLDER_DISPATCH_QUEUE = dispatch_queue_create(MONITOR_FOLDER_DISPATCH_QUEUE_NAME, 0);
-        MONITOR_FOLDER_DISPATCH_SOURCE = dispatch_source_create(DISPATCH_SOURCE_TYPE_VNODE,
-                                                                MONITOR_FOLDER_DESCRIPTOR,
-                                                                MONITOR_FOLDER_DISPATCH_FLAGS,
-                                                                MONITOR_FOLDER_DISPATCH_QUEUE);
+        FW::DESCRIPTOR = open(FW::WATCH_PATH_POSIX.c_str(), O_EVTONLY);
+        FW::DISPATCH_QUEUE = dispatch_queue_create(FW::DISPATCH_QUEUE_NAME, 0);
+        FW::DISPATCH_SOURCE = dispatch_source_create(DISPATCH_SOURCE_TYPE_VNODE,
+                                                                FW::DESCRIPTOR,
+                                                                FW::DISPATCH_FLAGS,
+                                                                FW::DISPATCH_QUEUE);
         
-        dispatch_source_set_event_handler(MONITOR_FOLDER_DISPATCH_SOURCE, ^(){
+        dispatch_source_set_event_handler(FW::DISPATCH_SOURCE, ^(){
             listenerLoopExecute();
         });
         
-        dispatch_source_set_cancel_handler(MONITOR_FOLDER_DISPATCH_SOURCE, ^() {
-            close(MONITOR_FOLDER_DESCRIPTOR);
-            MONITOR_FOLDER_DESCRIPTOR = 0; 
+        dispatch_source_set_cancel_handler(FW::DISPATCH_SOURCE, ^(){
+            close(FW::DESCRIPTOR);
+            FW::DESCRIPTOR = 0;
         });
         
-        dispatch_resume(MONITOR_FOLDER_DISPATCH_SOURCE);        
+        dispatch_resume(FW::DISPATCH_SOURCE);        
 #else
         
 #endif         
     }
 }
 
-void listenerLoopFinish(){
-
-    if(MONITOR_FOLDER_METHOD_PROCESS_ID){
+void listenerLoopFinish()
+{
+    if(FW::MONITOR_PROCESS_ID)
+				{
         //uninstall handler 
 #if VERSIONMAC         
-        dispatch_source_set_event_handler_f(MONITOR_FOLDER_DISPATCH_SOURCE, NULL);      
-        dispatch_source_cancel(MONITOR_FOLDER_DISPATCH_SOURCE);
+        dispatch_source_set_event_handler_f(FW::DISPATCH_SOURCE, NULL);      
+        dispatch_source_cancel(FW::DISPATCH_SOURCE);
 #else
         
 #endif 
         //set flags
-        MONITOR_FOLDER_METHOD_PROCESS_SHOULD_TERMINATE = true;
-        MONITOR_FOLDER_METHOD_PROCESS_SHOULD_EXECUTE_METHOD = false;
+        FW::MONITOR_PROCESS_SHOULD_TERMINATE = true;
         PA_YieldAbsolute();
+								FW::WATCH_PATH.setUTF16String((PA_Unichar *)"\0\0", 0);
+								FW::WATCH_PATH_POSIX = "";
+								FW::CALLBACK_METHOD_ID = 0;
+								FW::CALLBACK_EVENT_IDS.clear();
         //tell listener to die
-        while(MONITOR_FOLDER_METHOD_PROCESS_ID){
+        while(FW::MONITOR_PROCESS_ID)
+								{
             PA_YieldAbsolute();
-            PA_UnfreezeProcess(MONITOR_FOLDER_METHOD_PROCESS_ID);
+            PA_UnfreezeProcess(FW::MONITOR_PROCESS_ID);
         }
     }
 } 
 
-void listenerLoopExecute(){
-    MONITOR_FOLDER_METHOD_PROCESS_SHOULD_TERMINATE = false;
-    MONITOR_FOLDER_METHOD_PROCESS_SHOULD_EXECUTE_METHOD = true;
-    PA_UnfreezeProcess(MONITOR_FOLDER_METHOD_PROCESS_ID);
+void listenerLoopExecute()
+{
+    FW::MONITOR_PROCESS_SHOULD_TERMINATE = false;
+				FW::CALLBACK_EVENT_IDS.push_back([[NSDate date]timeIntervalSince1970]);
+    PA_UnfreezeProcess(FW::MONITOR_PROCESS_ID);
 }
 
-void listenerLoopExecuteMethod(){
-    
-    if(MONITOR_FOLDER_METHOD_ID){
-        
-        PA_Variable	params[1];
-        params[0] = PA_CreateVariable(eVK_Unistring);	
-        
-        PA_Unistring path = PA_CreateUnistring((PA_Unichar *)MONITOR_FOLDER_WATCH_PATH.getUTF16StringPtr());
+void listenerLoopExecuteMethod()
+{
+				std::vector<NSTimeInterval>::iterator e = FW::CALLBACK_EVENT_IDS.begin();
+				double ts = *e;
+				
+    if(FW::CALLBACK_METHOD_ID)
+				{
+        PA_Variable	params[2];
+        params[0] = PA_CreateVariable(eVK_Unistring);
+								params[1] = PA_CreateVariable(eVK_Real);
+								PA_Unistring path = PA_CreateUnistring((PA_Unichar *)FW::WATCH_PATH.getUTF16StringPtr());
         PA_SetStringVariable(&params[0], &path);
-        
-        PA_ExecuteMethodByID(MONITOR_FOLDER_METHOD_ID, params, 1);
-        
+								PA_SetRealVariable(&params[1], ts);
+								FW::CALLBACK_EVENT_IDS.erase(e);
+        PA_ExecuteMethodByID(FW::CALLBACK_METHOD_ID, params, 2);
         //PA_DisposeUnistring(&path);//removed 15.11.20 (clear will dispose string too)
-        
         PA_ClearVariable(&params[0]);//added 15.11.19
-    }
-    
+								PA_ClearVariable(&params[1]);
+    }else{
+								FW::CALLBACK_EVENT_IDS.erase(e);
+				}
 }
 
 #pragma mark -
@@ -245,50 +243,39 @@ void CommandDispatcher(PA_long32 pProcNum, sLONG_PTR *pResult, PackagePtr pParam
 
 // ----------------------------------- Settings -----------------------------------
 
-int MONITOR_FOLDER_NOT_FOLDER_ERROR = -1;
-int MONITOR_FOLDER_INVALID_PATH_ERROR = -2;
-int MONITOR_FOLDER_INVALID_METHOD_NAME_ERROR = -3;
-
 void FOLDER_Set_watch_path(sLONG_PTR *pResult, PackagePtr pParams)
 { 
-    C_TEXT Param1;
-	C_LONGINT returnValue;
+				C_TEXT Param1;
+				C_LONGINT returnValue;
 
-	Param1.fromParamAtIndex(pParams, 1);
+				Param1.fromParamAtIndex(pParams, 1);
     
-    if(!Param1.getUTF16Length()){
-        
+    if(!Param1.getUTF16Length())
+				{
+								//empty string passed
         returnValue.setIntValue(1);
-        
-        if(MONITOR_FOLDER_WATCH_PATH.getUTF16Length()){
-            
-            MONITOR_FOLDER_WATCH_PATH.setUTF16String(Param1.getUTF16StringPtr(), Param1.getUTF16Length());
-            
-            if(MONITOR_FOLDER_WATCH_METHOD.getUTF16Length()){
-                listenerLoopFinish();    
-            } 
-        }
+        if(FW::WATCH_PATH.getUTF16Length())	//current path is not empty
+												listenerLoopFinish();											//this will also clear the watch path
 
     }else{
     
-#if VERSIONMAC    
-        
         BOOL isDirectory = false;    
         NSString *path = Param1.copyPath();
         NSString *pathHFS = Param1.copyUTF16String();
         
-        if([[NSFileManager defaultManager]fileExistsAtPath:path isDirectory:&isDirectory]){
-            
-            if(isDirectory){
-                
-                returnValue.setIntValue(1); 
-                MONITOR_FOLDER_WATCH_PATH.setUTF16String(pathHFS); 
-                MONITOR_FOLDER_WATCH_PATH_POSIX = (const char *)[path UTF8String];
-                
-                if(MONITOR_FOLDER_WATCH_METHOD.getUTF16Length()){
+        if([[NSFileManager defaultManager]fileExistsAtPath:path isDirectory:&isDirectory])
+								{
+            if(isDirectory)
+												{
+                returnValue.setIntValue(1);
+																
+                if(FW::WATCH_PATH.getUTF16Length())
                     listenerLoopFinish();
-                    listenerLoopStart();            
-                }
+
+                FW::WATCH_PATH.setUTF16String(pathHFS); 
+                FW::WATCH_PATH_POSIX = (const char *)[path UTF8String];
+																
+																listenerLoopStart();//restart always
                 
             }else{
                 returnValue.setIntValue(MONITOR_FOLDER_NOT_FOLDER_ERROR);
@@ -299,11 +286,8 @@ void FOLDER_Set_watch_path(sLONG_PTR *pResult, PackagePtr pParams)
         }
         
         [path release];
-        [pathHFS release];        
-#else
-        
-#endif    
-        
+        [pathHFS release];
+								
     }
     
 	returnValue.setReturn(pResult);
@@ -316,46 +300,29 @@ void FOLDER_Set_watch_method(sLONG_PTR *pResult, PackagePtr pParams)
 
 	Param1.fromParamAtIndex(pParams, 1);
 
-    if(!Param1.getUTF16Length()){
-        
+    if(!Param1.getUTF16Length())
+				{
+								//empty string passed
         returnValue.setIntValue(1);
+								FW::CALLBACK_METHOD_ID = 0;
+								FW::WATCH_METHOD.setUTF16String((PA_Unichar *)"\0\0", 0);
         
-        if(MONITOR_FOLDER_WATCH_METHOD.getUTF16Length()){
-            
-            MONITOR_FOLDER_WATCH_METHOD.setUTF16String(Param1.getUTF16StringPtr(), Param1.getUTF16Length());
-            MONITOR_FOLDER_METHOD_ID = 0;
-            
-            if(MONITOR_FOLDER_WATCH_PATH.getUTF16Length()){
-                listenerLoopFinish();    
-            }            
-        }
-
     }else{  
         
         method_id_t methodId = PA_GetMethodID((PA_Unichar *)Param1.getUTF16StringPtr());
         
-        if(methodId){
-            
+        if(methodId)
+								{
             returnValue.setIntValue(1);
             
-            if(methodId != MONITOR_FOLDER_METHOD_ID){
-                
-                MONITOR_FOLDER_WATCH_METHOD.setUTF16String(Param1.getUTF16StringPtr(), Param1.getUTF16Length());
-                MONITOR_FOLDER_METHOD_ID = methodId;
-                
-                if(MONITOR_FOLDER_WATCH_PATH.getUTF16Length()){
-                    listenerLoopFinish();
-                    listenerLoopStart();                  
-                }
-
+            if(methodId != FW::CALLBACK_METHOD_ID)
+												{
+                FW::WATCH_METHOD.setUTF16String(Param1.getUTF16StringPtr(), Param1.getUTF16Length());
+                FW::CALLBACK_METHOD_ID = methodId;
             }
-            
         }else{
-            
             returnValue.setIntValue(MONITOR_FOLDER_INVALID_METHOD_NAME_ERROR);
-            
         }
-      
     }
   
 	returnValue.setReturn(pResult);
@@ -363,10 +330,10 @@ void FOLDER_Set_watch_method(sLONG_PTR *pResult, PackagePtr pParams)
 
 void FOLDER_Get_watch_path(sLONG_PTR *pResult, PackagePtr pParams)
 {
-    MONITOR_FOLDER_WATCH_PATH.setReturn(pResult);
+				FW::WATCH_PATH.setReturn(pResult);
 }
 
 void FOLDER_Get_watch_method(sLONG_PTR *pResult, PackagePtr pParams)
 {
-	MONITOR_FOLDER_WATCH_METHOD.setReturn(pResult);
+				FW::WATCH_PATH.setReturn(pResult);
 }
